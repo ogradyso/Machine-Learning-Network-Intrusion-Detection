@@ -15,3 +15,9 @@ I will start by analyzing and visualizing aggregate data in order to gain insigh
 # Benefit/Value
 
 The final product of this research project will help inform cyberdefense practices in the ever-changing 'cat and mouse game' of cyber warfare. The hope of this project is that it will help protect secure, private data from external and internal attacks saving companies millions of dollars in financial penalties and saving every day people from becoming victims of cyber attackers, criminals, and nation-state hackers.
+
+# Director
+
+The IntrusionDetection Jupyter notebook is meant to be documented review of the data exploration, pipeline, model development, comparison, and evaluation process. It explains the logic and decision-making process for the development of the Intrusion Detection System.
+
+The IntrusionDetection.py python script is the latest version of the model and is used for rapid testing and development. I created this file for use in an IDE (Spyder) in order to profile the memory and processing time for optimizing perfomance and latency during training as well as to assist in debugging.
