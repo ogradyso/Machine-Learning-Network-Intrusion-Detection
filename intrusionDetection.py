@@ -133,7 +133,7 @@ import time
 
 attack_detection_model = XGBClassifier()
 
-X_train_cv, X_test_cv, y_train_cv, y_test_cv = train_test_split(X_train, y_train, random_state=42)
+#X_train_cv, X_test_cv, y_train_cv, y_test_cv = train_test_split(X_train, y_train, random_state=42)
 
 import logging
 import sys
@@ -164,6 +164,7 @@ def objective(trial, X, y):
               # trail.suggest_loguniform() is used when the range of values have different scales.
               'reg_lambda':trial.suggest_loguniform('reg_lambda', 1e-3, 100),
               'reg_alpha':trial.suggest_loguniform('reg_alpha', 1e-3, 100),
+              'tree_method':"hist",
               'n_jobs':-1}
     
     model = XGBClassifier(**params)
@@ -179,11 +180,11 @@ def objective(trial, X, y):
         
         model.fit(X_tr, y_tr, eval_set=[(X_val, y_val)],
                   eval_metric=['mlogloss'],
-                  early_stopping_rounds=30, verbose=0,
+                  early_stopping_rounds=30, verbose=0
                   # optuna allows us to pass pruning callback to xgboost callbacks, so any trial which does not seem to be 
                   # better or not qualify a given threshold of loss reduciton after some iterations will get pruned, that is
                   # stopped in between hence saving time, we will see it in action below.
-                  callbacks=[optuna.integration.XGBoostPruningCallback(trial, observation_key="mlogloss")]
+                  #callbacks=[optuna.integration.XGBoostPruningCallback(trial, observation_key="mlogloss")]
                  )
         train_score = accuracy_score(y_tr, model.predict(X_tr))
         test_score = accuracy_score(y_val, model.predict(X_val))
@@ -204,13 +205,13 @@ from sklearn.exceptions import ConvergenceWarning
 simplefilter("ignore", category=ConvergenceWarning)
 simplefilter("ignore", category=RuntimeWarning)
 
-# start_time = time.time()
+start_time = time.time()
 # attack_detection_model.fit(X_train_cv, y_train_cv, early_stopping_rounds=5,eval_set=[(X_test_cv, y_test_cv)])
-# #optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
-# #optimize = partial(objective, X=X_train, y=y_train)
-# #study = optuna.create_study(direction='minimize')
-# #study.optimize(optimize, n_trials=100)
-# end_time = time.time()
+optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
+optimize = partial(objective, X=X_train, y=y_train)
+study = optuna.create_study(direction='minimize')
+study.optimize(optimize, n_trials=100)
+end_time = time.time()
 
 # print("Model training for default params took: {} hours".format((end_time - start_time)/3600))
 # # Model training for default params took: 5.953236647248268 hours
