@@ -57,7 +57,7 @@ y = y_train.squeeze()
 counter = Counter(y.tolist())
 print(counter)
 
-high_activity_ports = X_train[X_train['Label'] != 'Benign'].groupby('Dst Port').count()
+high_activity_ports = X_train.groupby('Dst Port').count()
 high_activity_port_list = high_activity_ports[high_activity_ports['Label'] > 100].index
 
 plot_multiple_limits('Dst Port', X_train[X_train['Dst Port'].isin(high_activity_port_list)], sns.countplot, [2000000, 500000, 2500],'Label')

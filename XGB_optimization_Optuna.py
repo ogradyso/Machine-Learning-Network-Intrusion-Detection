@@ -33,7 +33,7 @@ numerical_features = X_train._get_numeric_data().columns
 
 #categorical_features = list(set(all_features) - set(numerical_features))
 
-high_activity_ports = X_train[X_train['Label'] != 'Benign'].groupby('Dst Port').count()
+high_activity_ports = X_train.groupby('Dst Port').count()
 high_activity_port_list = high_activity_ports[high_activity_ports['Label'] > 100].index
 
 inifinity_cols = X_train[set(numerical_features)].columns.to_series()[np.isinf(X_train[set(numerical_features)]).any()]
