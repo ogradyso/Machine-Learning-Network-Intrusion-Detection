@@ -17,6 +17,7 @@ X_train.describe(include='all')
 #combine the features and labels for the following visualizations and data exploration steps
 # This will be separated before we train the models
 X_train['Label'] = y_train
+X_train['Label'] = X_train['Label'].astype('category').cat.codes
 X_train.head()
 
 import matplotlib.pyplot as plt
@@ -126,92 +127,13 @@ scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
 X_train = pd.DataFrame(X_train)
 
-from numpy import mean
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
 import time
 
 attack_detection_model = XGBClassifier()
 
-#X_train_cv, X_test_cv, y_train_cv, y_test_cv = train_test_split(X_train, y_train, random_state=42)
-
-import logging
-import sys
-import xgboost as xgb
-import optuna
-from sklearn.model_selection import KFold
-from functools import partial
-from warnings import simplefilter
-from sklearn.exceptions import ConvergenceWarning
-simplefilter("ignore", category=ConvergenceWarning)
-simplefilter("ignore", category=RuntimeWarning)
-
-def objective(trial, X, y):
-    print("Start of trial {}".format(trial))
-    params = {'n_estimators':2000,
-              # trail.suggest_unifrom() allows to pick out any value between the given range, values will be continuous and
-              # not just integers.
-              'learning_rate':trial.suggest_uniform('learning_rate', 0.005, 0.01),
-              
-              # trial.suggest_categorical() allows only the passed categorical values to be suggested.
-              'subsample':trial.suggest_categorical('subsample', [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]),
-              
-              # trial.suggest_int() will suggest integer values within the integer range. 
-              'max_depth':trial.suggest_int('max_depth', 3, 11),
-              
-              'colsample_bylevel':trial.suggest_categorical('colsample_bylevel', [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]),
-              
-              # trail.suggest_loguniform() is used when the range of values have different scales.
-              'reg_lambda':trial.suggest_loguniform('reg_lambda', 1e-3, 100),
-              'reg_alpha':trial.suggest_loguniform('reg_alpha', 1e-3, 100),
-              'tree_method':"hist",
-              'n_jobs':-1}
-    
-    model = XGBClassifier(**params)
-    
-    split = KFold(n_splits=5)
-    train_scores = []
-    test_scores = []
-    for train_idx, val_idx in split.split(X_train):
-        X_tr = X_train.iloc[train_idx]
-        X_val = X_train.iloc[val_idx]
-        y_tr = y_train.iloc[train_idx]
-        y_val = y_train.iloc[val_idx]
-        
-        model.fit(X_tr, y_tr, eval_set=[(X_val, y_val)],
-                  eval_metric=['mlogloss'],
-                  early_stopping_rounds=30, verbose=0
-                  # optuna allows us to pass pruning callback to xgboost callbacks, so any trial which does not seem to be 
-                  # better or not qualify a given threshold of loss reduciton after some iterations will get pruned, that is
-                  # stopped in between hence saving time, we will see it in action below.
-                  #callbacks=[optuna.integration.XGBoostPruningCallback(trial, observation_key="mlogloss")]
-                 )
-        train_score = accuracy_score(y_tr, model.predict(X_tr))
-        test_score = accuracy_score(y_val, model.predict(X_val))
-        train_scores.append(train_score)
-        test_scores.append(test_score)
-        
-    
-    print(f'train score : {train_scores}')
-    print(f'test score : {test_scores}')
-    train_score = np.round(np.mean(train_scores), 4)
-    test_score = np.round(np.mean(test_scores), 4)
-    
-    print(f'Train accuracy : {train_score} || Test accuracy : {test_score}')
-    print("End of trial {}".format(trial))
-    return test_score
-
-from sklearn.exceptions import ConvergenceWarning
-simplefilter("ignore", category=ConvergenceWarning)
-simplefilter("ignore", category=RuntimeWarning)
-
-start_time = time.time()
-# attack_detection_model.fit(X_train_cv, y_train_cv, early_stopping_rounds=5,eval_set=[(X_test_cv, y_test_cv)])
-optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
-optimize = partial(objective, X=X_train, y=y_train)
-study = optuna.create_study(direction='minimize')
-study.optimize(optimize, n_trials=100)
-end_time = time.time()
+X_train_cv, X_test_cv, y_train_cv, y_test_cv = train_test_split(X_train, y_train, random_state=42)
 
 # print("Model training for default params took: {} hours".format((end_time - start_time)/3600))
 # # Model training for default params took: 5.953236647248268 hours

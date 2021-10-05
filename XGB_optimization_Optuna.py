@@ -27,6 +27,8 @@ from xgboost import XGBClassifier
 # import the data:
 X_train = pd.read_csv("X_train.csv")
 y_train = pd.read_csv("y_train.csv")
+X_train['Label'] = y_train
+X_train['Label'] = X_train['Label'].astype('category').cat.codes
 
 #all_features = X_train.columns
 numerical_features = X_train._get_numeric_data().columns
@@ -37,6 +39,8 @@ high_activity_ports = X_train.groupby('Dst Port').count()
 high_activity_port_list = high_activity_ports[high_activity_ports['Label'] > 100].index
 
 inifinity_cols = X_train[set(numerical_features)].columns.to_series()[np.isinf(X_train[set(numerical_features)]).any()]
+
+y_train = X_train.pop('Label')
 
 # Replace the infinity with the maximum non-infinite value of a column multiplied by 2
 # negative infinity will be replaced with a minimum value of a column multiplied by 2 
@@ -126,7 +130,7 @@ def objective(trial: optuna.trial.Trial) -> float:
 
 start_time = time.time()
 # attack_detection_model.fit(X_train_cv, y_train_cv, early_stopping_rounds=5,eval_set=[(X_test_cv, y_test_cv)])
-study.optimize(objective, n_trials=10, timeout=60)
+study.optimize(objective, n_trials=10)
 end_time = time.time()
 
 print("The optimization process took: {} hours".format((end_time - start_time)/3600))
