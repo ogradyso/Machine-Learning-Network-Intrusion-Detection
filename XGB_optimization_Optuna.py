@@ -19,8 +19,9 @@ import optuna
 import category_encoders as ce
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import confusion_matrix
 #from sklearn.exceptions import ConvergenceWarning
 #from sklearn.model_selection import KFold
 from xgboost import XGBClassifier
@@ -105,36 +106,32 @@ except NameError:
 
 print(tempdir)
 
-# X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=0)
+#X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=0)
 
-# def objective(trial: optuna.trial.Trial) -> float:
+def objective(trial: optuna.trial.Trial) -> float:
 
-#     param = { # based on default suggestions from optuna website
-#         'objective': 'mlogloss',
-#         'booster': trial.suggest_categorical('xgb_booster', ['gbtree', 'gblinear', 'dart']),
-#         'lambda': trial.suggest_loguniform('xgb_lambda', 1e-8, 1.0),
-#         'alpha': trial.suggest_loguniform('xgb_alpha', 1e-8, 1.0),
-#         'use_label_encoder': False,
-#         'tree_method':'hist'
-#     }
+    param = { # based on default suggestions from optuna website
+        'objective': 'mlogloss',
+        'booster': trial.suggest_categorical('xgb_booster', ['gbtree', 'gblinear', 'dart']),
+        'lambda': trial.suggest_loguniform('xgb_lambda', 1e-8, 1.0),
+        'alpha': trial.suggest_loguniform('xgb_alpha', 1e-8, 1.0),
+        'use_label_encoder': False,
+        'tree_method':'hist'
+    }
 
+    clf = XGBClassifier(**param)
+    
+    with open(f"{os.path.join(tempdir, str(trial.number))}.pkl", "wb") as f:
+        pickle.dump(clf, f)
 
-#     clf = XGBClassifier(**param)
-#     clf.fit(X_train, y_train)
+    return np.mean(cross_val_score(clf, X_train, y_train, cv=8))
 
-#     with open(f"{os.path.join(tempdir, str(trial.number))}.pkl", "wb") as f:
-#         pickle.dump(clf, f)
+start_time = time.time()
+# attack_detection_model.fit(X_train_cv, y_train_cv, early_stopping_rounds=5,eval_set=[(X_test_cv, y_test_cv)])
+study.optimize(objective, n_trials=10)
+end_time = time.time()
 
-#     score = clf.score(X_val, y_val)
-
-#     return score
-
-# start_time = time.time()
-# # attack_detection_model.fit(X_train_cv, y_train_cv, early_stopping_rounds=5,eval_set=[(X_test_cv, y_test_cv)])
-# study.optimize(objective, n_trials=10)
-# end_time = time.time()
-
-#print("The optimization process took: {} hours".format((end_time - start_time)/3600))
+print("The optimization process took: {} hours".format((end_time - start_time)/3600))
 
 with open(f"{os.path.join(tempdir, str(study.best_trial.number))}.pkl", "rb") as f:
     best_model = pickle.load(f)
@@ -207,3 +204,8 @@ test_predictions = best_model.predict(X_test)
 
 accuracy_score(y_test, test_predictions)
 
+cf_matrix = confusion_matrix(y_test, test_predictions)
+print(cf_matrix)
+
+import seaborn as sns
+sns.heatmap(cf_matrix, annot=True)
