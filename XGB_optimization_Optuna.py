@@ -106,7 +106,8 @@ except NameError:
 
 print(tempdir)
 
-#X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=0)
+from sklearn.model_selection import train_test_split
+X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.5, random_state=0)
 
 def objective(trial: optuna.trial.Trial) -> float:
 
@@ -127,8 +128,8 @@ def objective(trial: optuna.trial.Trial) -> float:
     return np.mean(cross_val_score(clf, X_train, y_train, cv=8))
 
 start_time = time.time()
-# attack_detection_model.fit(X_train_cv, y_train_cv, early_stopping_rounds=5,eval_set=[(X_test_cv, y_test_cv)])
 study.optimize(objective, n_trials=10)
+
 end_time = time.time()
 
 print("The optimization process took: {} hours".format((end_time - start_time)/3600))
@@ -136,11 +137,20 @@ print("The optimization process took: {} hours".format((end_time - start_time)/3
 with open(f"{os.path.join(tempdir, str(study.best_trial.number))}.pkl", "rb") as f:
     best_model = pickle.load(f)
     
+
+best_model.fit(X_train,y_train)
+
+import joblib
+
+joblib.dump(best_model, "optuna_bad_model.pkl")
+
+
 # import the data:
 X_test = pd.read_csv("X_test.csv")
 y_test = pd.read_csv("y_test.csv")
 X_test['Label'] = y_test
 X_test['Label'] = X_test['Label'].astype('category').cat.codes
+
 
 #all_features = X_test.columns
 numerical_features = X_test._get_numeric_data().columns
