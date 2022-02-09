@@ -5,30 +5,74 @@ Created on Sun Oct  3 17:33:43 2021
 @author: 12105
 """
 import time
+#import logging
+#import sys
 import tempfile
 import pickle
 import os
+#from functools import partial
+#from warnings import simplefilter
 
 import pandas as pd
 import numpy as np
 import optuna
-#import category_encoders as ce
+import category_encoders as ce
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import confusion_matrix
+#from sklearn.exceptions import ConvergenceWarning
+#from sklearn.model_selection import KFold
 from xgboost import XGBClassifier
-from imblearn.under_sampling import NearMiss
-from collections import Counter
+
 # import the data:
 X_train = pd.read_csv("X_train.csv")
 y_train = pd.read_csv("y_train.csv")
-# X_train['Label'] = y_train
-# X_train['Label'] = X_train['Label'].astype('category').cat.codes
+X_train['Label'] = y_train
+X_train['Label'] = X_train['Label'].astype('category').cat.codes
 
-#X_train = X_res
-#y_train = y_res
+#all_features = X_train.columns
+numerical_features = X_train._get_numeric_data().columns
+
+#categorical_features = list(set(all_features) - set(numerical_features))
+
+high_activity_ports = X_train.groupby('Dst Port').count()
+high_activity_port_list = high_activity_ports[high_activity_ports['Label'] > 100].index
+
+inifinity_cols = X_train[set(numerical_features)].columns.to_series()[np.isinf(X_train[set(numerical_features)]).any()]
+
+y_train = X_train.pop('Label')
+
+# Replace the infinity with the maximum non-infinite value of a column multiplied by 2
+# negative infinity will be replaced with a minimum value of a column multiplied by 2 
+#(for negative numbers) or by the minimum non-negative value multiplied by negative 2:
+for col_name in inifinity_cols:
+    col_vals = X_train[col_name].replace(np.inf, 0)
+    col_inf_replacement = col_vals.max() * 5
+    col_vals = X_train[col_name].replace(-np.inf, 100000)
+    if col_vals.min() > 0:
+        col_negInf_replacement = col_vals.min() * -5
+    elif  col_vals.min() == 0:
+        col_negInf_replacement = -100000
+    else:
+        col_negInf_replacement = col_vals.min() * 5
+    X_train.replace(np.inf, col_inf_replacement, inplace=True)
+    X_train.replace(-np.inf, col_negInf_replacement, inplace=True)
+    
+# Target encoding for categorical variables 
+X_train['Dst Port'] = X_train['Dst Port'].astype('category')
+X_train['Protocol'] = X_train['Protocol'].astype('category')
+
+tenc_port = ce.TargetEncoder()
+dst_port_targetEnc = tenc_port.fit_transform(X_train['Dst Port'],X_train['Flow Duration'])
+
+X_train = dst_port_targetEnc.join(X_train.drop('Dst Port', axis=1))
+
+tenc_protocol = ce.TargetEncoder()
+protocol_targetEnc = tenc_protocol.fit_transform(X_train['Protocol'],X_train['Flow Duration'])
+
+X_train = protocol_targetEnc.join(X_train.drop('Protocol', axis=1))
 
 # # Remove features that are specific to this dataset:
 X_train = X_train.drop('Timestamp', axis =1)
@@ -36,75 +80,15 @@ X_train = X_train.drop('Src IP', axis =1)
 X_train = X_train.drop('Dst IP', axis =1)
 X_train = X_train.drop('Flow ID', axis =1)
 X_train = X_train.drop('Src Port', axis =1)
-X_train = X_train.drop('Dst Port', axis =1)
-X_train = X_train.drop('Protocol', axis =1)
-
-
-X_train['Label'] = y_train
-all_features = X_train.columns
-numerical_features = X_train._get_numeric_data().columns
-
-categorical_features = list(set(all_features) - set(numerical_features))
-
-#high_activity_ports = X_train.groupby('Dst Port').count()
-#high_activity_port_list = high_activity_ports[high_activity_ports['Label'] > 100].index
-
-inifinity_cols = X_train[set(numerical_features)].columns.to_series()[np.isinf(X_train[set(numerical_features)]).any()]
-
-
-#X_train['Label'] = ['Benign' if flow == 0 else 'Malicious' for flow in X_train['Label']]
-#X_train['Label'] = y_res
-X_train['Label'] = X_train['Label'].astype('category').cat.codes
-y_train = X_train.pop('Label')
-#y_train = X_train.pop('Label_Bin')
-#X_train.pop('Label_Bin')
-
-
-#X_viz, test, y_viz, y_test = train_test_split(X_train, y_train, test_size=0.80, random_state=42)
-
-# Replace the infinity with the maximum non-infinite value of a column multiplied by 2
-# negative infinity will be replaced with a minimum value of a column multiplied by 2 
-#(for negative numbers) or by the minimum non-negative value multiplied by negative 2:
-for col_name in inifinity_cols:
-    col_vals = X_train[col_name].replace(np.inf, 0)
-    col_inf_replacement = col_vals.max() * 2
-    col_vals = X_train[col_name].replace(-np.inf, 100000)
-    if col_vals.min() > 0:
-        col_negInf_replacement = col_vals.min() * -2
-    elif  col_vals.min() == 0:
-        col_negInf_replacement = -100000
-    else:
-        col_negInf_replacement = col_vals.min() * 2
-    X_train.replace(np.inf, col_inf_replacement, inplace=True)
-    X_train.replace(-np.inf, col_negInf_replacement, inplace=True)
-    
-# Target encoding for categorical variables 
-# X_train['Dst Port'] = X_train['Dst Port'].astype('category')
-# X_train['Protocol'] = X_train['Protocol'].astype('category')
-
-# tenc_port = ce.TargetEncoder()
-# dst_port_targetEnc = tenc_port.fit_transform(X_train['Dst Port'],X_train['Flow Duration'])
-
-# X_train = dst_port_targetEnc.join(X_train.drop('Dst Port', axis=1))
-
-# tenc_protocol = ce.TargetEncoder()
-# protocol_targetEnc = tenc_protocol.fit_transform(X_train['Protocol'],X_train['Flow Duration'])
-
-# X_train = protocol_targetEnc.join(X_train.drop('Protocol', axis=1))
 
 # # Inputer for numerical variables:
 imputer_mean = SimpleImputer(missing_values=np.nan, strategy='mean')
 X_train = imputer_mean.fit_transform(X_train)
 
-print('Original dataset shape {}'.format(Counter(y_train)))
-nm = NearMiss()
-X_res, y_res = nm.fit_resample(X_train, y_train)
-
 scaler = StandardScaler()
 
 X_train = scaler.fit_transform(X_train)
-X_train = pd.DataFrame(X_res)
-y_train = pd.DataFrame(y_res)
+X_train = pd.DataFrame(X_train)
 
 #simplefilter("ignore", category=ConvergenceWarning)
 #simplefilter("ignore", category=RuntimeWarning)
@@ -122,23 +106,13 @@ except NameError:
 
 print(tempdir)
 
-#from sklearn.model_selection import train_test_split
-#X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.5, random_state=0)
+from sklearn.model_selection import train_test_split
+X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.5, random_state=0)
 
-
-
-with open(f"{os.path.join(tempdir, str(study.best_trial.number))}.pkl", "rb") as f:
-    best_model = pickle.load(f)
-    
-
-best_model.fit(X_train, y_train)
-
-import joblib
 def objective(trial: optuna.trial.Trial) -> float:
 
     param = { # based on default suggestions from optuna website
-        'objective': 'binary:logistic',
-        "eval_metric": "auc",
+        'objective': 'mlogloss',
         'booster': trial.suggest_categorical('xgb_booster', ['gbtree', 'gblinear', 'dart']),
         'lambda': trial.suggest_loguniform('xgb_lambda', 1e-8, 1.0),
         'alpha': trial.suggest_loguniform('xgb_alpha', 1e-8, 1.0),
@@ -159,28 +133,32 @@ study.optimize(objective, n_trials=10)
 end_time = time.time()
 
 print("The optimization process took: {} hours".format((end_time - start_time)/3600))
-joblib.dump(best_model, "optuna_xgboost_multi_undersampled_model.pkl")
-joblib.dump(best_model, "optuna_bad_model.pkl")
 
-best_model = joblib.load(open("_model.pkl", 'rb'))
+with open(f"{os.path.join(tempdir, str(study.best_trial.number))}.pkl", "rb") as f:
+    best_model = pickle.load(f)
+    
+
+best_model.fit(X_train,y_train)
+
+import joblib
+
+joblib.dump(best_model, "pca_rus_optuna_xgboost_model.pkl")
+
 
 # import the data:
 X_test = pd.read_csv("X_test.csv")
 y_test = pd.read_csv("y_test.csv")
 X_test['Label'] = y_test
-#X_test['Label'] = X_test['Label'].astype('category').cat.codes
-
-#X_test['Label'] = ['Benign' if flow == 0 else 'Malicious' for flow in X_test['Label']]
 X_test['Label'] = X_test['Label'].astype('category').cat.codes
-#y_test = X_test.pop('Label')
+
 
 #all_features = X_test.columns
 numerical_features = X_test._get_numeric_data().columns
 
 #categorical_features = list(set(all_features) - set(numerical_features))
 
-#high_activity_ports = X_test.groupby('Dst Port').count()
-#high_activity_port_list = high_activity_ports[high_activity_ports['Label'] > 100].index
+high_activity_ports = X_test.groupby('Dst Port').count()
+high_activity_port_list = high_activity_ports[high_activity_ports['Label'] > 100].index
 
 inifinity_cols = X_test[set(numerical_features)].columns.to_series()[np.isinf(X_test[set(numerical_features)]).any()]
 
@@ -203,18 +181,18 @@ for col_name in inifinity_cols:
     X_test.replace(-np.inf, col_negInf_replacement, inplace=True)
     
 # Target encoding for categorical variables 
-#X_test['Dst Port'] = X_test['Dst Port'].astype('category')
-##X_test['Protocol'] = X_test['Protocol'].astype('category')
+X_test['Dst Port'] = X_test['Dst Port'].astype('category')
+X_test['Protocol'] = X_test['Protocol'].astype('category')
 
-#tenc_port = ce.TargetEncoder()
-#dst_port_targetEnc = tenc_port.fit_transform(X_test['Dst Port'],X_test['Flow Duration'])
+tenc_port = ce.TargetEncoder()
+dst_port_targetEnc = tenc_port.fit_transform(X_test['Dst Port'],X_test['Flow Duration'])
 
-#X_test = dst_port_targetEnc.join(X_test.drop('Dst Port', axis=1))
+X_test = dst_port_targetEnc.join(X_test.drop('Dst Port', axis=1))
 
-#tenc_protocol = ce.TargetEncoder()
-#protocol_targetEnc = tenc_protocol.fit_transform(X_test['Protocol'],X_test['Flow Duration'])
+tenc_protocol = ce.TargetEncoder()
+protocol_targetEnc = tenc_protocol.fit_transform(X_test['Protocol'],X_test['Flow Duration'])
 
-#X_test = protocol_targetEnc.join(X_test.drop('Protocol', axis=1))
+X_test = protocol_targetEnc.join(X_test.drop('Protocol', axis=1))
 
 # # Remove features that are specific to this dataset:
 X_test = X_test.drop('Timestamp', axis =1)
@@ -238,14 +216,6 @@ accuracy_score(y_test, test_predictions)
 
 cf_matrix = confusion_matrix(y_test, test_predictions)
 print(cf_matrix)
-
-from sklearn.metrics import confusion_matrix
-tn, fp, fn, tp = confusion_matrix(y_test, test_predictions).ravel()
-specificity = tn / (tn+fp)
-print(specificity)
-sensitivity = tp / (tp + fn)
-print(sensitivity)
-
 
 import seaborn as sns
 sns.heatmap(cf_matrix, annot=True)
