@@ -1,5 +1,8 @@
 # A machine learning approach to network protection
 
+**TL;DR**: This repo contains the data preparation, analyses, and model comparison results for a set of Machine Learning Models used to classify computer network traffic. This readme file contains a detailed overview of the project. A synopsis of the project along with the python code used for analysis is provided in the accompanying 'IntrusionDetection.ipynb' Jupyter Notebook.
+
+
 # Expanding Threat Landscape
 
 The proliferation and accessibility of cyber offense toolkits and weapons has resulted in a significantly enhanced threat environment for modern network systems and administrators. Networks are increasingly vulnerable to both internal ('inside man') and external attack vectors. Modern Intrusion Detection Systems (IDSs) analyze network traffic for known fingerprints from hacking groups but these systems are in constant need of updates in order to identify malign actions over a network. The amount of network data coupled with the ever-expanding threat environment offer an opportunity to apply advanced machine learning techniques to identify emerging threats in real time allowing for rapid detection and isolation of malicious network traffic.
