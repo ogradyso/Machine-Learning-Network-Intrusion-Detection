@@ -15,12 +15,12 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import confusion_matrix
 
-rnd_frst_clf = joblib.load('pca_rus_gs_rndFrst_model.pkl')
+rnd_frst_clf = joblib.load('pca_rus_bl_rndFrst_model.pkl')
 
 X_test_pca = pd.read_csv('Data/X_train_pca_rusMajCmp_SlowHTTP.csv')
 y_test_pca = pd.read_csv('Data/y_train_pca_rusMajCmp_SlowHTTP.csv')
 X_test_pca.pop('Unnamed: 0')
-#y_test_pca.pop('Unnamed: 0')
+y_test_pca.pop('Unnamed: 0')
 X_test_pca['Label'] = y_test_pca
 X_test_pca['Label'] = ['Web Attack' if flow == 'Brute Force -Web' or flow == 'SQL Injection' or flow == 'Brute Force -XSS' else flow for flow in X_test_pca['Label']]
 #X_test_pca['Label'] = X_test_pca['Label'].astype('category').cat.codes

@@ -30,11 +30,18 @@ y_res = pd.read_csv('Data/y_train_pca_rusMajCmp_SlowHTTP.csv')
 X_res.pop('Unnamed: 0')
 y_res.pop('Unnamed: 0')
 
+X_res['Label'] = y_res
+X_res['Label'] = ['Web Attack' if flow == 'Brute Force -Web' or flow == 'SQL Injection' or flow == 'Brute Force -XSS' else flow for flow in X_res['Label']]
+#X_test_pca['Label'] = X_test_pca['Label'].astype('category').cat.codes
+y_res = X_res.pop('Label')
+
+
 start_time = time.time()
 baseline_rnd_frst_clf = baseLineClassifier.fit(X_res, y_res)
 
 end_time = time.time()
 
+# The baseline random forest training time is: 0.13481438563929662 hours
 print("The baseline random forest training time is: {} hours".format((end_time - start_time)/3600))
 joblib.dump(baseline_rnd_frst_clf, "pca_rus_bl_rndFrst_model.pkl")
 
