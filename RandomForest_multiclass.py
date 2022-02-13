@@ -51,14 +51,24 @@ gridSearch_rnd_frst_clf = gridsearch.fit(X_res, y_res)
 end_time = time.time()
 
 # The grid search random forest training time is: 2.794910829199685 hours
-print("The grid search random forest training time is: {} hours".format((end_time - start_time)/3600))
+print("The grid search random forest optimization time is: {} hours".format((end_time - start_time)/3600))
+
 
 bestParameters = gridSearch_rnd_frst_clf.best_params_
 
 print(bestParameters)
+#{'criterion': 'gini', 'max_depth': 6, 'n_estimators': 200}
 
+gridSearch_rnd_frst_clf = RandomForestClassifier(criterion='gini',max_depth=6,n_estimators=200)
 
-import joblib
+start_time = time.time()
+gridSearch_rnd_frst_clf = gridSearch_rnd_frst_clf.fit(X_res, y_res)
+
+end_time = time.time()
+
+# The grid search random forest training time is: 0.3208307798041238 hours
+print("The grid search random forest training time is: {} hours".format((end_time - start_time)/3600))
+
 
 joblib.dump(gridSearch_rnd_frst_clf, "pca_rus_gs_rndFrst_model.pkl")
 
