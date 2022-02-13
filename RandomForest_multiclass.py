@@ -50,7 +50,7 @@ gridSearch_rnd_frst_clf = gridsearch.fit(X_res, y_res)
 
 end_time = time.time()
 
-
+# The grid search random forest training time is: 2.794910829199685 hours
 print("The grid search random forest training time is: {} hours".format((end_time - start_time)/3600))
 
 bestParameters = gridSearch_rnd_frst_clf.best_params_
